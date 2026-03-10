@@ -2,3 +2,4 @@ Pillow
 flask
 requests
 beautifulsoup4
+gunicorn
