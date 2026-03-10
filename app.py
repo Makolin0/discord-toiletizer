@@ -66,8 +66,3 @@ def proxy_tenor_gif(path):
     except Exception as e:
         app.logger.error(f"An unexpected error occurred: {e}")
         return f"An unexpected error occurred during GIF processing: {e}", 500
-
-if __name__ == "__main__":
-    # Runs the Flask web server.
-    # debug=True will auto-reload the server on code changes.
-    app.run(host='0.0.0.0', port=8080, debug=True)
