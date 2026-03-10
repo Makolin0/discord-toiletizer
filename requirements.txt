@@ -1,0 +1,4 @@
+Pillow
+flask
+requests
+beautifulsoup4
