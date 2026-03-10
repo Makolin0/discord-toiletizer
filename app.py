@@ -11,8 +11,13 @@ PNG_PATH = os.path.join(os.path.dirname(__file__), "toilet.png")
 TOP_LEFT = (1310, 1630)
 BOTTOM_RIGHT = (1900, 2200)
 
+@app.route('/')
+def homepage():
+    return "skibidi toilet"
+
 @app.route('/view/<path:path>')
 def proxy_tenor_gif(path):
+    TIMEOUT = 10 # seconds
     """
     This endpoint proxies a GIF from a tenor.com/view/ page.
     It fetches the Tenor page, finds the direct GIF URL, downloads it,
@@ -27,7 +32,7 @@ def proxy_tenor_gif(path):
     try:
         # Fetch the HTML content of the Tenor page.
         # A User-Agent header is added to mimic a browser.
-        page_response = requests.get(tenor_page_url, headers={'User-Agent': 'Mozilla/5.0'})
+        page_response = requests.get(tenor_page_url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=TIMEOUT)
         page_response.raise_for_status()  # Raise an exception for bad status codes (like 404).
 
         # Parse the HTML to find the actual GIF URL.
@@ -45,7 +50,7 @@ def proxy_tenor_gif(path):
         gif_url = img_tag['src']
 
         # Fetch the actual GIF content.
-        gif_response = requests.get(gif_url, stream=True) # Use stream=True for potentially large files
+        gif_response = requests.get(gif_url, stream=True, timeout=TIMEOUT) # Use stream=True for potentially large files
         gif_response.raise_for_status()
         gif_bytes = gif_response.content
 
@@ -61,7 +66,7 @@ def proxy_tenor_gif(path):
         return Response(processed_gif_bytes, mimetype='image/gif')
 
     except requests.exceptions.RequestException as e:
-        app.logger.error(f"Failed to fetch GIF from Tenor: {e}")
+        app.logger.error(f"Failed to fetch GIF from Tenor: {e}. URL: {tenor_page_url}")
         return f"Failed to fetch GIF from Tenor or process it: {e}", 500
     except Exception as e:
         app.logger.error(f"An unexpected error occurred: {e}")
