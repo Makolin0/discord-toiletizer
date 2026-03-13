@@ -1,4 +1,4 @@
-from flask import Flask, Response, abort
+from flask import Flask, Response, abort, request
 import requests
 from bs4 import BeautifulSoup
 import os # Added for path operations and file existence check
@@ -45,12 +45,26 @@ def homepage():
 
 @app.route('/view/<path:path>')
 def proxy_tenor_gif(path):
-    """
-    This endpoint proxies a GIF from a tenor.com/view/ page.
-    It fetches the Tenor page, finds the direct GIF URL, downloads it,
-    and serves it to the client.
-    This version also processes the GIF by placing it behind a static PNG image.
-    """
+    # Return HTML with Open Graph tags so Discord embeds the image
+    gif_url = f"{request.host_url}gif/{path}.gif"
+    return f"""<html>
+<head>
+    <meta property="og:title" content="Toiletized GIF" />
+    <meta property="og:image" content="{gif_url}" />
+    <meta property="twitter:image" content="{gif_url}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#00FF00">
+</head>
+<body>
+    <img src="{gif_url}" />
+</body>
+</html>"""
+
+@app.route('/gif/<path:path>')
+def serve_gif(path):
+    if path.endswith('.gif'):
+        path = path[:-4]
+        
     tenor_page_url = f"https://tenor.com/view/{path}"
 
     if not os.path.exists(PNG_PATH):
