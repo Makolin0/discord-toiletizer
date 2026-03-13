@@ -75,12 +75,10 @@ def proxy_tenor_gif(path):
     gif_url = f"{request.host_url}gif/{path}.gif"
     return f"""<html>
 <head>
-    <meta property="og:type" content="video.other" />
-    <meta property="og:video" content="{gif_url}" />
-    <meta property="og:video:url" content="{gif_url}" />
-    <meta property="og:video:type" content="image/gif" />
-    <meta property="og:video:width" content="498" />
-    <meta property="og:video:height" content="498" />
+    <meta property="og:image" content="{gif_url}" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="{gif_url}" />
 </head>
 <body>
     <img src="{gif_url}" />
