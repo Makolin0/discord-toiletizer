@@ -2,6 +2,7 @@ from flask import Flask, Response, abort, request
 import requests
 from bs4 import BeautifulSoup
 import os # Added for path operations and file existence check
+import hashlib
 from functools import lru_cache
 from PIL import Image
 from gif_modifier import place_gif_behind_image # Import the GIF processing function
@@ -13,6 +14,10 @@ PNG_PATH = os.path.join(os.path.dirname(__file__), "toilet.png")
 TOP_LEFT = (178, 218)
 BOTTOM_RIGHT = (254, 294)
 TIMEOUT = 10
+
+# Ensure cache directory exists
+CACHE_DIR = os.path.join(os.path.dirname(__file__), "cache")
+os.makedirs(CACHE_DIR, exist_ok=True)
 
 # Load the toilet image into memory once at startup
 if os.path.exists(PNG_PATH):
@@ -87,6 +92,13 @@ def serve_gif(path):
     if path.endswith('.gif'):
         path = path[:-4]
         
+    # Check local disk cache first
+    cache_key = hashlib.md5(path.encode('utf-8')).hexdigest()
+    cache_path = os.path.join(CACHE_DIR, f"{cache_key}.gif")
+    if os.path.exists(cache_path):
+        with open(cache_path, 'rb') as f:
+            return Response(f.read(), mimetype='image/gif')
+
     tenor_page_url = f"https://tenor.com/view/{path}"
 
     if TOILET_IMAGE is None:
@@ -102,6 +114,10 @@ def serve_gif(path):
             TOP_LEFT,
             BOTTOM_RIGHT
         )
+
+        # Save to cache for future requests
+        with open(cache_path, 'wb') as f:
+            f.write(processed_gif_bytes)
 
         return Response(
             processed_gif_bytes, 

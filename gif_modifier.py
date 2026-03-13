@@ -40,9 +40,21 @@ def place_gif_behind_image(gif_bytes, foreground, top_left, bottom_right):
 	# Open the GIF
 	gif = Image.open(io.BytesIO(gif_bytes)) # Open GIF from bytes
 	
+	# Optimization: Skip frames to reduce CPU load.
+	# If the GIF is high framerate (< 60ms delay), process every Nth frame.
+	original_duration = gif.info.get('duration', 100)
+	if original_duration == 0: original_duration = 100 # Safety for broken GIFs
+
+	step = 1
+	if original_duration < 60: # If faster than ~16fps
+		step = int(60 / original_duration)
+	
 	frames = []
 	
-	for frame in ImageSequence.Iterator(gif):
+	for i, frame in enumerate(ImageSequence.Iterator(gif)):
+		if i % step != 0:
+			continue
+
 		# 1. Create a transparent base the size of the total image
 		canvas = Image.new("RGBA", (bg_width, bg_height), (0, 0, 0, 0))
 		
@@ -58,6 +70,9 @@ def place_gif_behind_image(gif_bytes, foreground, top_left, bottom_right):
 		# Using paste with the image itself as a mask is faster than alpha_composite
 		# and avoids allocating a new 'combined' image buffer.
 		canvas.paste(foreground, (0, 0), foreground)
+		
+		# Optimization: Force fast quantization (FastOctree) and disable dithering.
+		canvas = canvas.quantize(method=2, dither=0)
 		frames.append(canvas)
 
 	# Save the result to an in-memory BytesIO object
@@ -68,7 +83,7 @@ def place_gif_behind_image(gif_bytes, foreground, top_left, bottom_right):
 		save_all=True,
 		append_images=frames[1:],
 		optimize=False,
-		duration=gif.info.get('duration', 100),
+		duration=original_duration * step, # Update duration to match skipped frames
 		loop=gif.info.get('loop', 0),
 		disposal=2
 	)
