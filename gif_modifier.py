@@ -21,18 +21,16 @@ def make_gif():
 	frame_one.save("circle.gif", format="GIF", append_images=frames,
 				   save_all=True, duration=100, loop=0)
 
-def place_gif_behind_image(gif_bytes, png_path, top_left, bottom_right):
+def place_gif_behind_image(gif_bytes, foreground, top_left, bottom_right):
 	"""
 	Places a GIF behind a PNG image within a specific coordinate window.
 	
 	:param gif_bytes: The raw bytes of the input GIF.
-	:param png_path: Path to the static foreground PNG image.
+	:param foreground: The pre-loaded PIL Image object of the foreground (toilet).
 	:param top_left: Tuple (x1, y1) for the top-left corner of the GIF placement.
 	:param bottom_right: Tuple (x2, y2) for the bottom-right corner of the GIF placement.
 	:return: The raw bytes of the processed GIF.
 	"""
-	# Load the static foreground PNG
-	foreground = Image.open(png_path).convert("RGBA")
 	bg_width, bg_height = foreground.size
 	
 	# Calculate the required size for the GIF based on coordinates
@@ -49,18 +47,18 @@ def place_gif_behind_image(gif_bytes, png_path, top_left, bottom_right):
 		canvas = Image.new("RGBA", (bg_width, bg_height), (0, 0, 0, 0))
 		
 		# 2. Resize and prepare the GIF frame
-# Updated resizing line
 		frame_resized = frame.convert("RGBA").resize(
-			(target_width, target_height), 
-			Image.Resampling.LANCZOS
+			(target_width, target_height),
+			Image.Resampling.BOX # BOX is significantly faster than LANCZOS
 		)
 		# 3. Paste the GIF frame onto the canvas at the target location
 		canvas.paste(frame_resized, top_left)
 		
 		# 4. Composite the PNG on TOP of the canvas
-		# alpha_composite requires both images to be the same size
-		combined = Image.alpha_composite(canvas, foreground)
-		frames.append(combined)
+		# Using paste with the image itself as a mask is faster than alpha_composite
+		# and avoids allocating a new 'combined' image buffer.
+		canvas.paste(foreground, (0, 0), foreground)
+		frames.append(canvas)
 
 	# Save the result to an in-memory BytesIO object
 	output_buffer = io.BytesIO()

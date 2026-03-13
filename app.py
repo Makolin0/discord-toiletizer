@@ -2,6 +2,8 @@ from flask import Flask, Response, abort, request
 import requests
 from bs4 import BeautifulSoup
 import os # Added for path operations and file existence check
+from functools import lru_cache
+from PIL import Image
 from gif_modifier import place_gif_behind_image # Import the GIF processing function
 
 app = Flask(__name__)
@@ -12,10 +14,20 @@ TOP_LEFT = (178, 218)
 BOTTOM_RIGHT = (254, 294)
 TIMEOUT = 10
 
-def get_gif(url):
+# Load the toilet image into memory once at startup
+if os.path.exists(PNG_PATH):
+    TOILET_IMAGE = Image.open(PNG_PATH).convert("RGBA")
+else:
+    TOILET_IMAGE = None
+
+# Create a session to reuse TCP connections
+session = requests.Session()
+session.headers.update({'User-Agent': 'Mozilla/5.0'})
+
+@lru_cache(maxsize=128)
+def resolve_tenor_url(url):
     # Fetch the HTML content of the Tenor page.
-    # A User-Agent header is added to mimic a browser.
-    page_response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=TIMEOUT)
+    page_response = session.get(url, timeout=TIMEOUT)
     page_response.raise_for_status()  # Raise an exception for bad status codes (like 404).
 
     # Parse the HTML to find the actual GIF URL.
@@ -24,16 +36,25 @@ def get_gif(url):
     # The GIF is usually inside a <div class="Gif">.
     gif_container = soup.find('div', class_='Gif')
     if not gif_container:
-        return "Could not find GIF container on Tenor page.", 404
+        return None
 
     img_tag = gif_container.find('img')
     if not img_tag or not img_tag.get('src'):
-        return "Could not find img tag or src attribute in the container.", 404
+        return None
 
-    gif_url = img_tag['src']
+    return img_tag['src']
+
+def get_gif(url):
+    try:
+        gif_url = resolve_tenor_url(url)
+    except requests.exceptions.RequestException as e:
+        raise e
+        
+    if not gif_url:
+        raise ValueError("Could not find GIF URL on Tenor page.")
 
     # Fetch the actual GIF content.
-    gif_response = requests.get(gif_url, stream=True, timeout=TIMEOUT) # Use stream=True for potentially large files
+    gif_response = session.get(gif_url, stream=True, timeout=TIMEOUT) # Use stream=True for potentially large files
     gif_response.raise_for_status()
     gif_bytes = gif_response.content
     
@@ -68,7 +89,7 @@ def serve_gif(path):
         
     tenor_page_url = f"https://tenor.com/view/{path}"
 
-    if not os.path.exists(PNG_PATH):
+    if TOILET_IMAGE is None:
         return "Error: toilet.png not found. Please ensure it's in the same directory as main.py.", 500
 
     try:
@@ -77,7 +98,7 @@ def serve_gif(path):
         # Process the GIF using the gif_modifier function
         processed_gif_bytes = place_gif_behind_image(
             gif_bytes,
-            PNG_PATH,
+            TOILET_IMAGE,
             TOP_LEFT,
             BOTTOM_RIGHT
         )
@@ -100,9 +121,12 @@ def save_to_file(data, filename):
         f.write(data)
 
 def main():
+    if TOILET_IMAGE is None:
+        print("Error: toilet.png not found.")
+        return
     tenor_page_url = f"https://tenor.com/view/rasiel-gif-4732260642365963979"
     gif_bytes = get_gif(tenor_page_url)
-    processed_gif_bytes = place_gif_behind_image(gif_bytes, PNG_PATH, TOP_LEFT, BOTTOM_RIGHT)
+    processed_gif_bytes = place_gif_behind_image(gif_bytes, TOILET_IMAGE, TOP_LEFT, BOTTOM_RIGHT)
     save_to_file(gif_bytes, "ralsei.gif")
     save_to_file(processed_gif_bytes, "output.gif")
 
