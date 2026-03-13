@@ -49,11 +49,12 @@ def proxy_tenor_gif(path):
     gif_url = f"{request.host_url}gif/{path}.gif"
     return f"""<html>
 <head>
-    <meta property="og:title" content="Toiletized GIF" />
-    <meta property="og:image" content="{gif_url}" />
-    <meta property="twitter:image" content="{gif_url}" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="theme-color" content="#00FF00">
+    <meta property="og:type" content="video.other" />
+    <meta property="og:video" content="{gif_url}" />
+    <meta property="og:video:url" content="{gif_url}" />
+    <meta property="og:video:type" content="image/gif" />
+    <meta property="og:video:width" content="498" />
+    <meta property="og:video:height" content="498" />
 </head>
 <body>
     <img src="{gif_url}" />
@@ -81,7 +82,11 @@ def serve_gif(path):
             BOTTOM_RIGHT
         )
 
-        return Response(processed_gif_bytes, mimetype='image/gif')
+        return Response(
+            processed_gif_bytes, 
+            mimetype='image/gif',
+            headers={'Content-Length': str(len(processed_gif_bytes))}
+        )
 
     except requests.exceptions.RequestException as e:
         app.logger.error(f"Failed to fetch GIF from Tenor: {e}. URL: {tenor_page_url}")
